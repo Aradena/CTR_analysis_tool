@@ -27,9 +27,13 @@ res_dict = {}
 
 squaredFigSize = 600
 
-lirocList = ['HV_SiPM_asic', 'threshold_asic', 'PZC_asic', 'HV_SiPM_ref', 'threshold_ref', 'detectorASICside',
+# liroc
+variableToSaveList = ['HV_SiPM_asic', 'threshold_asic', 'PZC_asic', 'HV_SiPM_ref', 'threshold_ref', 'detectorASICside',
              'detectorREFside', 'noProbePA', 'asicChannel', 'extPZC_circuit', 'externalResAtChannelInput', 'allMasked']
-sipmCaracList = ['sipmModel', 'HV_SiPM_HF', 'thres_HF', 'HV_SiPM_ref']
+# # sipm carac
+# variableToSaveList = ['sipmModel', 'HV_SiPM_HF', 'thres_HF', 'HV_SiPM_ref']
+# # ref
+# variableToSaveList = ['HV_SiPM_Ref']
 
 
 def findNumberIfAny(patternToFind, string, numberBefore=False):
@@ -285,6 +289,7 @@ def makeGlobalTimingHisto():
 
                             fit_df = pd.DataFrame({'xfit': xfit, 'yfit': yfit})
 
+                            res_dict['toaMean'] = "%.3f" % meanHisto
                             res_dict['sigma'] = "%.1f" % sigmaHisto
                             res_dict['entries'] = entries
                             res_dict['fwhm'] = "%.1f" % fwhmHisto
@@ -335,10 +340,11 @@ def makeGlobalTimingHisto():
 
                             fit_df = pd.DataFrame({'xfit': xfit, 'yfit': yfit})
 
+                            res_dict['toaMean'] = "%.3f" % meanHisto
                             res_dict['sigma'] = "%.1f" % sigmaHisto
                             res_dict['fwhm'] = "%.1f" % fwhmHisto
                             res_dict['lambda'] = "%.1f" % lambdHisto
-                            # res_dict['CTR_asic'] = "%.1f" % ((2 * (fwhmHisto ** 2) - 72 ** 2) ** 0.5)
+                            # res_dict['CTR_asic'] = "%.1f" % ((2 * (fwhmHisto ** 2) - 65 ** 2) ** 0.5)
                             res_dict['CTR_asic_sigma'] = "%.1f" % (fwhmHisto / (2 * (entries - 1)) ** 0.5)
                         except RuntimeError:
                             print("ERROR fit Gaussian+Exp")
@@ -451,7 +457,7 @@ def loadFiles(dataPath, deltaT_file):
 
 def save():
     global deltaT_file, btnSave
-
+    print("Start saving...", end=' ')
     outputFolder = './'+outputPath+'/'+dataPath+'/'
     if not os.path.exists(outputFolder):
         os.makedirs(outputFolder)
@@ -472,7 +478,7 @@ def save():
     # print(res_dict)
     res_dict["timeSaved"]=datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     res_df = pd.DataFrame(res_dict, index=[0],
-                          columns=sipmCaracList+['fwhm',  'CTR_asic_sigma', 'sigma', 'lambda',  'entries', 'charge_asic',
+                          columns=variableToSaveList+['toaMean', 'fwhm',  'CTR_asic_sigma', 'sigma', 'lambda',  'entries', 'charge_asic',
                                    'filename', 'folder', 'timeSaved', 'comment'])
     # 'discri_bias', 'curConv', 'fb', 'paOutBias', 'gain_asic','paBW_asic','comp_asic', 'Hyst_asic',  'oscilloscopeReferenceTimingHysteresis', 'CTR_asic',
 
@@ -487,7 +493,7 @@ def save():
     data[['ID','areaPALG_asic','amplitude_ref','deltaT','area_trigger_asic','cluster']].to_csv(dataCSV_file)
 
     btnSave.button_type = 'success'
-    print('Saved')
+    print('All saved')
     # browser = webbrowser.get('firefox')
     # browser.open(detailSVG)
 
@@ -495,52 +501,60 @@ def extractInformationFromFilename(dataPath, filename):
     global res_dict
 
     # folder name
-    # 20221010_HFsetup_NUVHDRH_UHDDA_vs_Reference
-    print(dataPath)
-    sipmModel = (re.findall(r'HFsetup(.*)_vs', dataPath)[0])
+    #20221010_Reference/20221010_2_BRD_Nr3vsNr4_30um_TAC_PMI1X050vs051_LYSOCeCa_2x2x3_4FP_Teflon_Melt1.582_16C_5V_57mA_BGA2851Bal10nFPZ10pF680WHF1nF
 
-    # filename
-    # C1--_45VNUVHDRHvs37VRef_Thresh100mV_80mV_--00000
-    HV_SiPM_HF = findNumberIfAny('--_', filename)
-    thres_HF = findNumberIfAny('Thresh', filename)
-    HV_SiPM_ref = findNumberIfAny('vs', filename)
+    # # filename
+    # HV_SiPM_Ref = findNumberIfAny('2ptsinx_', filename)
+
+
+    # # folder name
+    # # 20221010_HFsetup_NUVHDRH_UHDDA_vs_Reference
+    # print(dataPath)
+    # sipmModel = (re.findall(r'HFsetup(.*)_vs', dataPath)[0])
+    #
+    # # filename
+    # # C1--_45VNUVHDRHvs37VRef_Thresh100mV_80mV_--00000
+    # HV_SiPM_HF = findNumberIfAny('--_', filename)
+    # thres_HF = findNumberIfAny('Thresh', filename)
+    # HV_SiPM_ref = findNumberIfAny('vs', filename)
 
 
 
     # folder name
-    # # 10102022_Liroc_PZC8_Vth460_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3
-    # asicChannel = findNumberIfAny('ch', dataPath)
-    # externalResAtChannelInput = findNumberIfAny('ohm', dataPath, numberBefore=True)
-    # if re.search(r"noExtPZ", dataPath) is not None:
-    #     extPZC_circuit = 'None'
-    # elif re.search(r"StefanPZ", dataPath) is not None:
-    #     extPZC_circuit = 'StefanPZC'
-    # else:
-    #     extPZC_circuit = 'Unknown'
-    #
-    # crystalBrand = ['EPIC', 'TAC']
-    # print('Crystal brand looked for in folder name : ', crystalBrand, ' Add if missing any !')
-    # for brand in crystalBrand:
-    #     detectorASICside = re.findall(r'' + brand + '(.*?)_vs', dataPath)
-    #     if detectorASICside:
-    #         detectorASICside = brand + detectorASICside[0]
-    #         break
-    #
-    # detectorREFside = (re.findall(r'vs_HF_(.*)', dataPath)[0]).replace('_hysteresis', '')
-    #
-    # # F1_Liroc_PZC8_Th460_noProbePA_allMasked_vs_HF_37V_80mV_00000
+    # 10102022_Liroc_PZC8_Vth460_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3
+    asicChannel = findNumberIfAny('ch', dataPath)
+    externalResAtChannelInput = findNumberIfAny('ohm', dataPath, numberBefore=True)
+    if re.search(r"noExtPZ", dataPath) is not None:
+        extPZC_circuit = 'None'
+    elif re.search(r"StefanPZ", dataPath) is not None:
+        extPZC_circuit = 'StefanPZC'
+    else:
+        extPZC_circuit = 'Unknown'
+
+    crystalBrand = ['EPIC', 'TAC']
+    print('Crystal brand looked for in folder name : ', crystalBrand, ' Add if missing any !')
+    for brand in crystalBrand:
+        detectorASICside = re.findall(r'' + brand + '(.*?)_vs', dataPath)
+        if detectorASICside:
+            detectorASICside = brand + detectorASICside[0]
+            break
+
+    detectorREFside = (re.findall(r'vs_HF_(.*)', dataPath)[0]).replace('_hysteresis', '')
+
+    # F1_Liroc_PZC8_Th460_noProbePA_allMasked_vs_HF_37V_80mV_00000
+    HV_SiPM_asic = findNumberIfAny('_HV', dataPath)
     # HV_SiPM_asic = findNumberIfAny('mV_', filename)
-    # threshold_asic = findNumberIfAny('Th', filename)
-    #
-    # PZC_asic = findNumberIfAny('PZC', filename)
-    # # paBW_asic = findNumberIfAny('paBW', areaPALG_asic_file)
-    # Hyst_asic = findNumberIfAny('Hyst', filename)
-    # noProbePA = False if (re.search(r"noProbePA", dataPath) is None) else True
-    # allMasked = False if (re.search(r"allMasked", dataPath) is None) else True
-    #
-    #
-    # HV_SiPM_ref = int(re.findall(r'(?<=HF_)[0-9]+', filename)[0])
-    # threshold_ref = int(re.findall(r'(?<=V_)[0-9]+(?=mV)', filename)[0])
+    threshold_asic = findNumberIfAny('Th', filename)
+
+    PZC_asic = findNumberIfAny('PZC', filename)
+    # paBW_asic = findNumberIfAny('paBW', areaPALG_asic_file)
+    Hyst_asic = findNumberIfAny('Hyst', filename)
+    noProbePA = False if (re.search(r"noProbePA", dataPath) is None) else True
+    allMasked = False if (re.search(r"allMasked", dataPath) is None) else True
+
+
+    HV_SiPM_ref = int(re.findall(r'(?<=HF_)[0-9]+', filename)[0])
+    threshold_ref = int(re.findall(r'(?<=V_)[0-9]+(?=mV)', filename)[0])
 
 
     # # Elsaroc specific
@@ -558,7 +572,7 @@ def extractInformationFromFilename(dataPath, filename):
     # 'discri_bias', 'curConv', 'fb', 'paOutBias',  'comp_asic', 'gain_asic', 'Hyst_asic','paBW_asic', 'oscilloscopeReferenceTimingHysteresis',
 
 
-    for variableName in sipmCaracList:
+    for variableName in variableToSaveList:
         res_dict[variableName] = locals()[variableName]
 
     res_dict['folder'] = dataPath
@@ -695,14 +709,18 @@ outputPath = 'outputBokeh'
 # dataPath = '04052022_Elsaroc_ch6_EPIC2x2x3_PbF2_black_HBK_Nr79457_vs_HF_TAC2x2x3_LYSOCeCa_5FP_BRCM_Nr2_hysteresis_scan'
 # dataPath = '1'
 # dataPath = '03052022_Radioroc_ch0_EPIC2x2x3_BGO_5FP_FBKLF2M1_Nr28_vs_HF_TAC2x2x3_LYSOCeCa_5FP_BRCM_Nr2_hysteresis'
-dataPath = '20221010_Reference/20221010_2_BRD_Nr3vsNr4_30um_TAC_PMI1X050vs051_LYSOCeCa_2x2x3_4FP_Teflon_Melt1.582_16C_5V_57mA_BGA2851Bal10nFPZ10pF680WHF1nF'
+# dataPath = '20221010_Reference/20221010_2_BRD_Nr3vsNr4_30um_TAC_PMI1X050vs051_LYSOCeCa_2x2x3_4FP_Teflon_Melt1.582_16C_5V_57mA_BGA2851Bal10nFPZ10pF680WHF1nF'
 # dataPath = '10102022_Liroc_PZC8_Vth460_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
 # dataPath = '20221010_HFsetup_NUVHDRH_UHDDA_vs_Reference'
+
+dataPath='11102022_Liroc_HV45_VthScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '11102022_Liroc_biasScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDLF_M3_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_SENSL_ARRAYDM_std_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+dataPath= '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_HPKS13361-2050-08_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
 
 # selectionner les points à fitter plutôt que fit auto sur tout l'interval = rapidité
 # corriger bug charge asic quand area pa ne change pas
 # reset comment & zoom & selection when changing file
-
 fileList = [filename for filename in os.listdir('data/'+dataPath+'/') if filename.startswith("F3")] # M2
 deltaT_file = fileList[i]
 asicChargeList = ['area trigger', 'TOT']
