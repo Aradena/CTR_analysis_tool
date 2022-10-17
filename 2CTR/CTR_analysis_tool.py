@@ -27,9 +27,13 @@ res_dict = {}
 
 squaredFigSize = 600
 
+# radioroc
+variableToSaveList = ['asicChannel', 'externalResAtChannelInput', 'comp_asic', 'gain_asic', 'detectorASICside',
+                      'detectorREFside', 'allMasked','HV_SiPM_asic', 'thresTiming_asic', 'thresEnergy_asic',
+                      'HV_SiPM_ref', 'threshold_ref']
 # liroc
-variableToSaveList = ['HV_SiPM_asic', 'threshold_asic', 'PZC_asic', 'HV_SiPM_ref', 'threshold_ref', 'detectorASICside',
-             'detectorREFside', 'noProbePA', 'asicChannel', 'extPZC_circuit', 'externalResAtChannelInput', 'allMasked']
+# variableToSaveList = ['HV_SiPM_asic', 'threshold_asic', 'PZC_asic', 'HV_SiPM_ref', 'threshold_ref', 'detectorASICside',
+#              'detectorREFside', 'noProbePA', 'asicChannel', 'extPZC_circuit', 'externalResAtChannelInput', 'allMasked']
 # # sipm carac
 # variableToSaveList = ['sipmModel', 'HV_SiPM_HF', 'thres_HF', 'HV_SiPM_ref']
 # # ref
@@ -413,21 +417,26 @@ def update(attr, old, new):
 def loadFiles(dataPath, deltaT_file):
     global data, src, measures, btnSave
 
-    amplitude_ref_file = deltaT_file.replace("F3", "F1")
-    # deltaT_file = deltaT_file.replace("F1", "F3")
-    # deltaT_file = areaPALG_asic_file.replace("M2", "M3")
-    # amplitude_ref_file = areaPALG_asic_file.replace("M2", "M1")
 
-    area_trigger_file = deltaT_file.replace("F3", "F2")
-    areaPALG_asic_file = deltaT_file.replace("F3", "F4")
+    #LIROC
+    energyA_file = deltaT_file.replace("F3", "F1")
+    energyB_file = deltaT_file.replace("F3", "F2")
+    energyB2_file = deltaT_file.replace("F3", "F4")
+    riseTimeA_file=deltaT_file.replace("F3", "F6")
+
+    #RADIOROC
+    energyA_file = deltaT_file.replace("F3", "F1")
+    energyB_file = deltaT_file.replace("F3", "F2")
+    riseTimeA_file=deltaT_file.replace("F3", "F4")
+    riseTimeB_file=deltaT_file.replace("F3", "F5")
 
     csvSeparator = '\t' #',' #
 
-    areaPALG_asic_df = pd.read_csv('data/'+dataPath+'/'+areaPALG_asic_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
+    areaPALG_asic_df = pd.read_csv('data/'+dataPath+'/'+energyB2_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
     areaPALG_asic_df = areaPALG_asic_df.dropna().rename(columns={'Time':'ID', 'Ampl': 'areaPALG_asic'})
     areaPALG_asic_df['areaPALG_asic'] *= 10**9
 
-    amplitude_ref_df = pd.read_csv('data/'+dataPath+'/'+amplitude_ref_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
+    amplitude_ref_df = pd.read_csv('data/'+dataPath+'/'+energyA_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
     amplitude_ref_df = amplitude_ref_df.dropna().rename(columns={'Time':'ID', 'Ampl': 'amplitude_ref'})
     amplitude_ref_df['amplitude_ref'] *= 10**9
 
@@ -436,12 +445,22 @@ def loadFiles(dataPath, deltaT_file):
     deltaT_df['deltaT'] *= -10 ** 9  # fit quality
     # deltaT_df['deltaT'] += abs(deltaT_df['deltaT'].min()) -82 # shift all to avoid error when fitting with gaussian + exponential
 
-    area_trigger_df = pd.read_csv('data/'+dataPath+'/' + area_trigger_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
+    riseTimeA_df = pd.read_csv('data/'+dataPath+'/' + riseTimeA_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
+    riseTimeA_df = riseTimeA_df.dropna().rename(columns={'Time': 'ID', 'Ampl': 'riseTimeA'})
+    riseTimeA_df['riseTimeA'] *= 10 ** 9  # fit quality
+
+    riseTimeB_df = pd.read_csv('data/'+dataPath+'/' + riseTimeB_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
+    riseTimeB_df = riseTimeB_df.dropna().rename(columns={'Time': 'ID', 'Ampl': 'riseTimeB'})
+    riseTimeB_df['riseTimeB'] *= 10 ** 9  # fit quality
+
+    area_trigger_df = pd.read_csv('data/'+dataPath+'/' + energyB_file, skiprows=4, encoding="ISO-8859-1", sep=csvSeparator, na_values="-nan(ind)")
     area_trigger_df = area_trigger_df.dropna().rename(columns={'Time': 'ID', 'Ampl': 'area_trigger_asic'})
     area_trigger_df['area_trigger_asic'] *= 10**9
 
     data = pd.merge(areaPALG_asic_df, amplitude_ref_df, how='inner', on="ID")
     data = pd.merge(data, deltaT_df, how='inner', on="ID")
+    data = pd.merge(data, riseTimeA_df, how='inner', on="ID")
+    data = pd.merge(data, riseTimeB_df, how='inner', on="ID")
     data = pd.merge(data, area_trigger_df, how='inner', on="ID")
 
     data['cluster'] = 0
@@ -519,19 +538,54 @@ def extractInformationFromFilename(dataPath, filename):
     # HV_SiPM_ref = findNumberIfAny('vs', filename)
 
 
-
+        # LIROC
     # folder name
     # 10102022_Liroc_PZC8_Vth460_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3
+    # asicChannel = findNumberIfAny('ch', dataPath)
+    # externalResAtChannelInput = findNumberIfAny('ohm', dataPath, numberBefore=True)
+    # if re.search(r"noExtPZ", dataPath) is not None:
+    #     extPZC_circuit = 'None'
+    # elif re.search(r"StefanPZ", dataPath) is not None:
+    #     extPZC_circuit = 'StefanPZC'
+    # else:
+    #     extPZC_circuit = 'Unknown'
+    #
+    # crystalBrand = ['EPIC', 'TAC']
+    # print('Crystal brand looked for in folder name : ', crystalBrand, ' Add if missing any !')
+    # for brand in crystalBrand:
+    #     detectorASICside = re.findall(r'' + brand + '(.*?)_vs', dataPath)
+    #     if detectorASICside:
+    #         detectorASICside = brand + detectorASICside[0]
+    #         break
+    #
+    # detectorREFside = (re.findall(r'vs_HF_(.*)', dataPath)[0]).replace('_hysteresis', '')
+    #
+    # # F1_Liroc_PZC8_Th460_noProbePA_allMasked_vs_HF_37V_80mV_00000
+    # HV_SiPM_asic = findNumberIfAny('_HV', dataPath)
+    # # HV_SiPM_asic = findNumberIfAny('mV_', filename)
+    # threshold_asic = findNumberIfAny('Th', filename)
+    #
+    # PZC_asic = findNumberIfAny('PZC', filename)
+    # # paBW_asic = findNumberIfAny('paBW', areaPALG_asic_file)
+    # Hyst_asic = findNumberIfAny('Hyst', filename)
+    # noProbePA = False if (re.search(r"noProbePA", dataPath) is None) else True
+    # allMasked = False if (re.search(r"allMasked", dataPath) is None) else True
+    #
+    #
+    # HV_SiPM_ref = int(re.findall(r'(?<=HF_)[0-9]+', filename)[0])
+    # threshold_ref = int(re.findall(r'(?<=V_)[0-9]+(?=mV)', filename)[0])
+
+
+    # # RADIOROC
+
+    # folder name
+    # 13102022_Radioroc_BiasScan_allMasked_ch62_10ohm_comp2_gain1_PMI1X026_LYSOCeCa_BRCM_NUVMT_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3
     asicChannel = findNumberIfAny('ch', dataPath)
     externalResAtChannelInput = findNumberIfAny('ohm', dataPath, numberBefore=True)
-    if re.search(r"noExtPZ", dataPath) is not None:
-        extPZC_circuit = 'None'
-    elif re.search(r"StefanPZ", dataPath) is not None:
-        extPZC_circuit = 'StefanPZC'
-    else:
-        extPZC_circuit = 'Unknown'
+    comp_asic = findNumberIfAny('comp', dataPath)
+    gain_asic = findNumberIfAny('gain', dataPath)
 
-    crystalBrand = ['EPIC', 'TAC']
+    crystalBrand = ['PMI', 'EPIC', 'TAC']
     print('Crystal brand looked for in folder name : ', crystalBrand, ' Add if missing any !')
     for brand in crystalBrand:
         detectorASICside = re.findall(r'' + brand + '(.*?)_vs', dataPath)
@@ -539,27 +593,30 @@ def extractInformationFromFilename(dataPath, filename):
             detectorASICside = brand + detectorASICside[0]
             break
 
-    detectorREFside = (re.findall(r'vs_HF_(.*)', dataPath)[0]).replace('_hysteresis', '')
-
-    # F1_Liroc_PZC8_Th460_noProbePA_allMasked_vs_HF_37V_80mV_00000
-    HV_SiPM_asic = findNumberIfAny('_HV', dataPath)
     # HV_SiPM_asic = findNumberIfAny('mV_', filename)
-    threshold_asic = findNumberIfAny('Th', filename)
+    # HV_SiPM_asic = int(re.findall(r'(?<=_)[0-9]+(?=.txt)', filename)[0])
+    HV_SiPM_asic = findNumberIfAny('_HV', filename)
 
-    PZC_asic = findNumberIfAny('PZC', filename)
-    # paBW_asic = findNumberIfAny('paBW', areaPALG_asic_file)
-    Hyst_asic = findNumberIfAny('Hyst', filename)
-    noProbePA = False if (re.search(r"noProbePA", dataPath) is None) else True
+    if '_HF' in dataPath:
+        detectorREFside = (re.findall(r'vs_HF_(.*)', dataPath)[0]).replace('_hysteresis', '')
+        HV_SiPM_ref = int(re.findall(r'(?<=HF_)[0-9]+', filename)[0])
+        threshold_ref = int(re.findall(r'(?<=V_)[0-9]+(?=mV)', filename)[0])
+
+    else:
+        # radio against radio
+        detectorREFside = (re.findall(r'vs_(.*)', dataPath)[0]).replace('_hysteresis', '')
+        HV_SiPM_ref = 'identical'
+        threshold_ref = 'identical'
     allMasked = False if (re.search(r"allMasked", dataPath) is None) else True
 
+    # F1_Radioroc_Ch3_ThA270_Ch4_ThB1023_ch62_vs_HF_37V_80mV_00000
 
-    HV_SiPM_ref = int(re.findall(r'(?<=HF_)[0-9]+', filename)[0])
-    threshold_ref = int(re.findall(r'(?<=V_)[0-9]+(?=mV)', filename)[0])
-
+    # HV_SiPM_asic = findNumberIfAny('_HV', dataPath)
+    thresTiming_asic = findNumberIfAny('4_th', filename)
+    thresEnergy_asic = findNumberIfAny('3_th', filename)
 
     # # Elsaroc specific
-    # comp_asic = findNumberIfAny('Comp', areaPALG_asic_file)
-    # gain_asic = findNumberIfAny('gain_asic', areaPALG_asic_file)
+
     # discri_bias = findNumberIfAny('discriBias', areaPALG_asic_file)
     # curConv = findNumberIfAny('curConv', areaPALG_asic_file)
     # fb = findNumberIfAny('fb', areaPALG_asic_file)
@@ -715,8 +772,21 @@ outputPath = 'outputBokeh'
 
 dataPath='11102022_Liroc_HV45_VthScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
 # dataPath = '11102022_Liroc_biasScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDLF_M3_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
-# dataPath = '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_SENSL_ARRAYDM_std_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
-dataPath= '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_HPKS13361-2050-08_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+dataPath = '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_SENSL_ARRAYDM_std_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+dataPath = '11102022_Liroc_VthScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDE_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+dataPath = '11102022_Liroc_PZC8_VthScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDRH_UHDDA_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath= '12102022_Liroc_VthScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_HPKS13361-2050-08_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath='12102022_Liroc_VthScan_noProbePA_allMasked_ch58_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_FBK_NUVHDLF_M3_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '12102022_Liroc_BiasScan_noProbePA_allMasked_ch15_50ohm_noExtPZ_EPIC2x2x3_PbF2_black_HPKS13361-2050-08_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '13102022_Radioroc_BiasScan_allMasked_ch62_10ohm_comp2_gain1_PMI1X026_LYSOCeCa_BRCM_NUVMT_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '12102022_Radioroc_BiasScan_allMasked_ch62_50ohm_comp2_gain32_EPIC2x2x3_PbF2_black_NUVHDLF_M3_vs_HF_TAC2x2x3_LYSOCeCa_4FP_BRCM_Nr3'
+# dataPath = '14102022_Radio_vs_Radio_BiasScan_allMasked_ch62_10ohm_comp2_gain1_PMI1X025_vs_PMI1X026_LYSOCeCa_BRCM_NUVMT'
+# dataPath = '14102022_Radio_vs_Radio_BiasScan_allMasked_ch62_10ohm_comp0_gain1_PMI1X025_vs_PMI1X026_LYSOCeCa_BRCM_NUVMT'
+# dataPath= '14102022_Radio_vs_Radio_BiasScan_allMasked_ch62_10ohm_comp0_gain2_PMI1X025_vs_PMI1X026_LYSOCeCa_BRCM_NUVMT'
+# dataPath = '15102022_Radio_vs_Radio_allMasked_ch62_10ohm_PMI3X001_vs_PMI3X002_BGO_3x3x20_BRCM_NUVMT'
+dataPath = '15102022_Radio_vs_Radio_allMasked_ch62_10ohm_PMI1X050_vs_PMI1X051_LYSOCeCa_2x2x3_BRCM_NUVMT'
+dataPath = '15102022_Radio_vs_Radio_allMasked_ch62_10ohm_PMI1X025_vs_PMI1X026_LYSOCeCa_3x3x20_BRCM_standard3x3_with_PZ_680W100pF'
+
 
 # selectionner les points à fitter plutôt que fit auto sur tout l'interval = rapidité
 # corriger bug charge asic quand area pa ne change pas
